@@ -1,6 +1,9 @@
 package com.nti.nti_backend.user;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository
@@ -17,4 +20,7 @@ public interface UserRepository
     // Для скидання пароля
     Optional<User> findByResetPasswordToken(
             String resetPasswordToken);
+
+    // Find By Role
+    List<User> findAllByRole(Role role);
 }

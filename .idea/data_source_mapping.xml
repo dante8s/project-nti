@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourcePerFileMappings">
+    <file url="file://$PROJECT_DIR$/nti-backend/src/main/resources/db/migration/V3__mentorship.sql" value="28d37b6d-b214-4062-a4bb-450b43daa15f" />
+  </component>
+</project>
