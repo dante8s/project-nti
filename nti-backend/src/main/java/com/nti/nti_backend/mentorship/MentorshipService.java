@@ -1,21 +1,16 @@
 package com.nti.nti_backend.mentorship;
 
-import com.nti.nti_backend.mentorship.dto.AddNoteRequestDTO;
+
 import com.nti.nti_backend.mentorship.dto.AssignMentorRequestDTO;
-import com.nti.nti_backend.mentorship.dto.ConsultationNoteDTO;
 import com.nti.nti_backend.mentorship.dto.MentorshipResponseDTO;
-import com.nti.nti_backend.mentorship.entity.ConsultationNote;
 import com.nti.nti_backend.mentorship.entity.Mentorship;
 import com.nti.nti_backend.mentorship.entity.MentorshipStatus;
-import com.nti.nti_backend.mentorship.repository.ConsultationNoteRepository;
 import com.nti.nti_backend.mentorship.repository.MentorshipRepository;
 import com.nti.nti_backend.organization.exception.ConflictException;
 import com.nti.nti_backend.organization.exception.ResourceNotFoundException;
 import com.nti.nti_backend.user.User;
 import com.nti.nti_backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,12 +19,12 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+
 @Service
 @RequiredArgsConstructor
 public class MentorshipService {
 
     private final MentorshipRepository mentorshipRepository;
-    private final ConsultationNoteRepository noteRepository;
     private final UserRepository userRepository;
 
 
@@ -64,7 +59,7 @@ public class MentorshipService {
                     );
             if (alreadyExists) {
                 throw new ConflictException(
-                        "This mentor already has an actieve mentorship on that application"
+                        "This mentor already has an active mentorship on that application"
                 );
             }
         }
@@ -76,7 +71,7 @@ public class MentorshipService {
                 .build();
 
         mentorship = mentorshipRepository.save(mentorship);
-        return toResponseDTO(mentorship, null);
+        return toResponseDTO(mentorship);
     }
 
     // GET my mentorships (mentor)
@@ -86,75 +81,28 @@ public class MentorshipService {
         return mentorshipRepository
                 .findAllByMentorIdAndStatus(currentUserId, MentorshipStatus.ACTIVE)
                 .stream()
-                .map(m -> toResponseDTO(m, null))
+                .map(this::toResponseDTO)
                 .toList();
     }
 
-    // Get one with notes
+    // Get by id
     @Transactional(readOnly = true)
     public MentorshipResponseDTO getById(UUID id) {
-        Mentorship mentorship = mentorshipRepository.findByIdWithNotes(id)
+        Mentorship mentorship = mentorshipRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Mentorship with id: " + id + " not found"
                 ));
 
-        Long currentUserId = getCurrentUser().getId();
-        boolean isAdmin = getCurrentUser().getRole().name().equals("ADMIN");
-        boolean isMentor = mentorship.getMentor().getId().equals(currentUserId);
+        User currentUser = getCurrentUser();
+        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        boolean isMentor = mentorship.getMentor().getId().equals(currentUser.getId());
 
         if (!isAdmin && !isMentor) {
             throw new ConflictException("You do not have access to this mentorship");
         }
 
-        List<ConsultationNoteDTO> noteDTOs = mentorship.getNotes().stream()
-                .map(this::toNoteDTO)
-                .toList();
-        return toResponseDTO(mentorship, noteDTOs);
+        return toResponseDTO(mentorship);
 
-    }
-
-    // ADD NOTE (mentor only)
-    @Transactional
-    public ConsultationNoteDTO addNote(UUID mentorshipId, AddNoteRequestDTO dto) {
-        Mentorship mentorship = mentorshipRepository.findById(mentorshipId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Mentorship not found: " + mentorshipId
-                ));
-
-        User currentUser = getCurrentUser();
-
-
-        if (!mentorship.getMentor().getId().equals(currentUser.getId())) {
-            throw new ConflictException(
-                    "Only the assigned mentor can add notes to this mentorship."
-            );
-        }
-
-        if (mentorship.getStatus() != MentorshipStatus.ACTIVE) {
-            throw new ConflictException(
-                    "Cannot add notes to this mentorship with status: " + mentorship.getStatus()
-            );
-        }
-
-        ConsultationNote note = ConsultationNote.builder()
-                .mentorship(mentorship)
-                .content(dto.getContent())
-                .createdBy(currentUser)
-                .build();
-
-        note = noteRepository.save(note);
-        return toNoteDTO(note);
-    }
-
-    // Get Notes Paginated
-    @Transactional(readOnly = true)
-    public Page<ConsultationNoteDTO> getNotes(UUID mentorshipId, Pageable pageable) {
-        if (!mentorshipRepository.existsById(mentorshipId)) {
-            throw new ResourceNotFoundException("Mentorship not found: " + mentorshipId);
-        }
-        return noteRepository
-                .findAllByMentorshipIdOrderByCreatedAtDesc(mentorshipId, pageable)
-                .map(this::toNoteDTO);
     }
 
     // Close Mentorship
@@ -184,12 +132,12 @@ public class MentorshipService {
         mentorship.setEndDate(OffsetDateTime.now());
         mentorshipRepository.save(mentorship);
 
-        return toResponseDTO(mentorship, null);
+        return toResponseDTO(mentorship);
     }
 
     // Mapping
     private MentorshipResponseDTO toResponseDTO(
-            Mentorship m, List<ConsultationNoteDTO> notes
+            Mentorship m
     ) {
         return MentorshipResponseDTO.builder()
                 .id(m.getId())
@@ -200,19 +148,8 @@ public class MentorshipService {
                 .status(m.getStatus())
                 .startDate(m.getStartDate())
                 .endDate(m.getEndDate())
-                .notes(notes)
                 .createdAt(m.getCreatedAt())
                 .build();
     }
 
-    private ConsultationNoteDTO toNoteDTO(ConsultationNote n) {
-        return ConsultationNoteDTO.builder()
-                .id(n.getId())
-                .content(n.getContent())
-                .createdById(n.getCreatedBy().getId())
-                .createdByName(n.getCreatedBy().getName())
-                .createdAt(n.getCreatedAt())
-                .build();
-
-    }
 }

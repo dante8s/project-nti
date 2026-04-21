@@ -30,6 +30,10 @@ public class MilestoneService {
     private static final Map<MilestoneStatus, Set<MilestoneStatus>> ALLOWED_TRANSITIONS =
             new EnumMap<>(MilestoneStatus.class);
     static {
+        ALLOWED_TRANSITIONS.put(
+                MilestoneStatus.PENDING_APPROVAL, Set.of(
+                        MilestoneStatus.PLANNED // admin-approval
+                ));
         ALLOWED_TRANSITIONS.put(MilestoneStatus.PLANNED, Set.of(
                 MilestoneStatus.IN_PROGRESS,
                 MilestoneStatus.BLOCKED
@@ -59,8 +63,9 @@ public class MilestoneService {
     }
 
     private MilestoneStatus resolveStatus(Milestone milestone) {
-        if (milestone.getStatus() == MilestoneStatus.COMPLETED) {
-            return MilestoneStatus.COMPLETED;
+        if (milestone.getStatus() == MilestoneStatus.COMPLETED ||
+        milestone.getStatus() == MilestoneStatus.PENDING_APPROVAL) {
+            return milestone.getStatus();
         }
         if (milestone.getDueDate().isBefore(LocalDate.now())) {
             return MilestoneStatus.OVERDUE;
@@ -89,10 +94,17 @@ public class MilestoneService {
     @Transactional
     public MilestoneResponseDTO create(MilestoneRequestDTO dto) {
         User currentUser = getCurrentUser();
-        boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
-        if (!isAdmin) {
-            throw new ConflictException("Only ADMIN can create milestones");
+        String role = currentUser.getRole().name();
+        boolean isAdmin = role.equals("ADMIN");
+        boolean isStudent = role.equals("STUDENT");
+
+        if (!isAdmin && !isStudent) {
+            throw new ConflictException("Only STUDENT or ADMIN can create milestones");
         }
+
+        MilestoneStatus initialStatus = isAdmin ?
+                MilestoneStatus.PLANNED
+                : MilestoneStatus.PENDING_APPROVAL;
 
         Milestone milestone = Milestone.builder()
                 .applicationId(dto.getApplicationId())
@@ -100,7 +112,7 @@ public class MilestoneService {
                 .title(dto.getTitle())
                 .description(dto.getDescription())
                 .dueDate(dto.getDueDate())
-                .status(MilestoneStatus.PLANNED)
+                .status(initialStatus)
                 .createdBy(currentUser)
                 .build();
 
@@ -151,18 +163,25 @@ public class MilestoneService {
 
         User currentUser = getCurrentUser();
         boolean isAdmin = currentUser.getRole().name().equals("ADMIN");
+        boolean isCreator = milestone.getCreatedBy().getId().equals(currentUser.getId());
 
-        if (!isAdmin) {
-            throw new ConflictException(
-                    "Only the creator and ADMIN can edit this milestone"
-            );
-        }
         // Can't edit COMPLETED milestone
         if (milestone.getStatus() == MilestoneStatus.COMPLETED) {
             throw new ConflictException(
                     "Cannot edit a COMPLETED milestone"
             );
         }
+
+        if (isAdmin) {
+
+        } else if (isCreator && milestone.getStatus() ==  MilestoneStatus.PENDING_APPROVAL) {
+
+        } else {
+            throw new ConflictException(
+                    "You cannot edit this milestone. Once APPROVED, only admin can make changes"
+            );
+        }
+
 
         milestone.setTitle(dto.getTitle());
         milestone.setDescription(dto.getDescription());

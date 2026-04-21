@@ -4,6 +4,7 @@ import com.nti.nti_backend.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -19,9 +20,8 @@ public class ConsultationNote {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "mentorship_id", nullable = false)
-    private Mentorship mentorship;
+    @Column(name = "application_id",  nullable = false)
+    private Long applicationId;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
@@ -33,4 +33,8 @@ public class ConsultationNote {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private OffsetDateTime updatedAt;
 }

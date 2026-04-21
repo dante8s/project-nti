@@ -15,10 +15,9 @@ public class MentorshipResponseDTO {
     private Long mentorUserId;
     private String mentorName;
     private String mentorEmail;
-    private Long applicationId; //NullForNow
+    private Long applicationId;
     private MentorshipStatus status;
     private OffsetDateTime startDate;
     private OffsetDateTime endDate;
-    private List<ConsultationNoteDTO> notes; //
     private OffsetDateTime createdAt;
 }

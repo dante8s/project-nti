@@ -10,8 +10,10 @@ import java.util.UUID;
 @Builder
 public class ConsultationNoteDTO {
     private UUID id;
+    private Long applicationId;
     private String content;
     private Long createdById;
     private String createdByName;
     private OffsetDateTime createdAt;
+    private OffsetDateTime updatedAt;
 }
